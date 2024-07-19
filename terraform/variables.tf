@@ -1,11 +1,19 @@
 variable "resource_group_location" {
   type        = string
-  default     = "northeurope"
+  default     = "switzerlandnorth"
   description = "Location of the resource group."
 }
 
-variable "resource_group_name_prefix" {
-  type        = string
-  default     = "rg"
-  description = "Prefix of the resource group name that's combined with a random ID so name is unique in your Azure subscription."
+variable "resource_group_name" {
+  type = string
+  default = "tfresourcegroup"
+  description = "Name of the terraform resource group"
+}
+
+variable "environment_short" {
+    type = string
+    validation {
+        condition = (contains(["prod", "int", "dev"], var.environment_short) || startswith(var.environment_short, "dev"))
+        error_message = "Environment must be prod, int or dev*"
+    }
 }

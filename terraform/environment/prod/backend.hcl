@@ -1,0 +1,5 @@
+subscription_id = "149a82b9-0f28-4aef-a631-018a1f92fd7a"
+resource_group_name = "cedihegi-tfstate"
+storage_account_name  = "cedihegitfstatestorage"
+container_name        = "tfstate"
+key                   = "terraform.prod.tfstate"

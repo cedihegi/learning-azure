@@ -29,11 +29,11 @@ resource "azurerm_key_vault" "secrets-kv" {
 
 
 resource "azurerm_key_vault_access_policy" "secrets-kv_global-subscription-owner" {
-  object_id           = "03275b60-6ef8-41b8-9f05-bedf16183921"
-  tenant_id           = data.azurerm_client_config.current.tenant_id
-  key_vault_id        = azurerm_key_vault.secrets-kv.id
+  object_id    = azuread_group.global-owner-group.object_id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  key_vault_id = azurerm_key_vault.secrets-kv.id
 
-  key_permissions         = ["Backup", "Create", "Decrypt", "Delete", "Encrypt", "Get", "Import", "List", "Purge", "Recover", "Restore", "Sign", "UnwrapKey", "Update", "Verify", "WrapKey", "Release", "Rotate", "GetRotationPolicy", "SetRotationPolicy"]
+  key_permissions = ["Backup", "Create", "Decrypt", "Delete", "Encrypt", "Get", "Import", "List", "Purge", "Recover", "Restore", "Sign", "UnwrapKey", "Update", "Verify", "WrapKey", "Release", "Rotate", "GetRotationPolicy", "SetRotationPolicy"]
 
   secret_permissions      = ["Set", "Get", "Delete", "Purge", "Recover", "List", "Backup", "Restore"]
   certificate_permissions = ["Backup", "Create", "Delete", "DeleteIssuers", "Get", "GetIssuers", "Import", "List", "ListIssuers", "ManageContacts", "ManageIssuers", "Purge", "Recover", "Restore", "SetIssuers", "Update"]

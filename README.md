@@ -14,6 +14,7 @@ az login --tentant <tenant-id>
 ```
 
 Setting backend / Initializing:
+(note: all the following commands are also found under `/terraform/scripts/..`)
 
 ```bash
 export ENVIRONMENT="dev" | "int" | "prod"

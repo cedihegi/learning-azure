@@ -5,19 +5,26 @@ terraform {
       version = "~>3.0"
 
     }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.48.0"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~>3.0"
     }
   }
   backend "azurerm" {
-    resource_group_name = "cedihegi-tfstate"
+    resource_group_name  = "cedihegi-tfstate"
     storage_account_name = "cedihegitfstatestorage"
-    container_name = "tfstate"
-    key = "terraform.tfstate"
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
   }
 }
 
 provider "azurerm" {
   features {}
+}
+provider "azuread" {
+    tenant_id = data.azurerm_client_config.current.tenant_id
 }

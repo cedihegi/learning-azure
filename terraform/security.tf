@@ -13,7 +13,16 @@ resource "azuread_group" "global-owner-group" {
     security_enabled = true
 }
 
+data "azuread_group" "data-consumers" {
+    display_name = "data-consumers"
+}
+
 resource "azuread_group_member" "cedi-global-owner" {
     group_object_id = azuread_group.global-owner-group.object_id
+    member_object_id = data.azuread_user.cedihegi.object_id
+}
+
+resource "azuread_group_member" "cedi-data-consumer" {
+    group_object_id = data.azuread_group.data-consumers.object_id
     member_object_id = data.azuread_user.cedihegi.object_id
 }

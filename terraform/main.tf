@@ -13,7 +13,7 @@ resource "azurerm_key_vault" "secrets-kv" {
   resource_group_name             = azurerm_resource_group.rg.name
   tenant_id                       = data.azurerm_client_config.current.tenant_id
   sku_name                        = "standard"
-  enable_rbac_authorization       = false
+  enable_rbac_authorization       = true
   enabled_for_deployment          = false
   enabled_for_template_deployment = true
   enabled_for_disk_encryption     = false
@@ -27,15 +27,9 @@ resource "azurerm_key_vault" "secrets-kv" {
 #   subnet_id = ... obvisouly not since we didnt define a subnet
 # }
 
-
-resource "azurerm_key_vault_access_policy" "secrets-kv_global-subscription-owner" {
-  object_id    = azuread_group.global-owner-group.object_id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  key_vault_id = azurerm_key_vault.secrets-kv.id
-
-  key_permissions = ["Backup", "Create", "Decrypt", "Delete", "Encrypt", "Get", "Import", "List", "Purge", "Recover", "Restore", "Sign", "UnwrapKey", "Update", "Verify", "WrapKey", "Release", "Rotate", "GetRotationPolicy", "SetRotationPolicy"]
-
-  secret_permissions      = ["Set", "Get", "Delete", "Purge", "Recover", "List", "Backup", "Restore"]
-  certificate_permissions = ["Backup", "Create", "Delete", "DeleteIssuers", "Get", "GetIssuers", "Import", "List", "ListIssuers", "ManageContacts", "ManageIssuers", "Purge", "Recover", "Restore", "SetIssuers", "Update"]
-
+resource "azurerm_role_assignment" "kv_secrets_global_owner" {
+  principal_id = azuread_group.global-owner-group.object_id
+  scope = azurerm_key_vault.secrets-kv.id
+  role_definition_name = "Key Vault Administrator"
 }
+

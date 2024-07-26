@@ -1,0 +1,151 @@
+#cloud-config
+# cloud-config based on repo template: https://github.com/Azure/iotedge-vm-deploy/tree/1.4
+# see: https://docs.microsoft.com/en-us/azure/virtual-machines/linux/tutorial-automate-vm-deployment
+# This File is made for terraform azurerm provider. so it will replace all variables defined like the DCS variable
+apt:
+  preserve_sources_list: true
+  sources:
+    msft.list:
+      # source 18.04 -> deb https://packages.microsoft.com/ubuntu/18.04/multiarch/prod bionic main
+      source: "deb https://packages.microsoft.com/ubuntu/20.04/prod focal main"
+      key: |
+        -----BEGIN PGP PUBLIC KEY BLOCK-----
+        Version: GnuPG v1.4.7 (GNU/Linux)
+
+        mQENBFYxWIwBCADAKoZhZlJxGNGWzqV+1OG1xiQeoowKhssGAKvd+buXCGISZJwT
+        LXZqIcIiLP7pqdcZWtE9bSc7yBY2MalDp9Liu0KekywQ6VVX1T72NPf5Ev6x6DLV
+        7aVWsCzUAF+eb7DC9fPuFLEdxmOEYoPjzrQ7cCnSV4JQxAqhU4T6OjbvRazGl3ag
+        OeizPXmRljMtUUttHQZnRhtlzkmwIrUivbfFPD+fEoHJ1+uIdfOzZX8/oKHKLe2j
+        H632kvsNzJFlROVvGLYAk2WRcLu+RjjggixhwiB+Mu/A8Tf4V6b+YppS44q8EvVr
+        M+QvY7LNSOffSO6Slsy9oisGTdfE39nC7pVRABEBAAG0N01pY3Jvc29mdCAoUmVs
+        ZWFzZSBzaWduaW5nKSA8Z3Bnc2VjdXJpdHlAbWljcm9zb2Z0LmNvbT6JATUEEwEC
+        AB8FAlYxWIwCGwMGCwkIBwMCBBUCCAMDFgIBAh4BAheAAAoJEOs+lK2+EinPGpsH
+        /32vKy29Hg51H9dfFJMx0/a/F+5vKeCeVqimvyTM04C+XENNuSbYZ3eRPHGHFLqe
+        MNGxsfb7C7ZxEeW7J/vSzRgHxm7ZvESisUYRFq2sgkJ+HFERNrqfci45bdhmrUsy
+        7SWw9ybxdFOkuQoyKD3tBmiGfONQMlBaOMWdAsic965rvJsd5zYaZZFI1UwTkFXV
+        KJt3bp3Ngn1vEYXwijGTa+FXz6GLHueJwF0I7ug34DgUkAFvAs8Hacr2DRYxL5RJ
+        XdNgj4Jd2/g6T9InmWT0hASljur+dJnzNiNCkbn9KbX7J/qK1IbR8y560yRmFsU+
+        NdCFTW7wY0Fb1fWJ+/KTsC4=
+        =J6gs
+        -----END PGP PUBLIC KEY BLOCK-----
+packages:
+  - moby-cli
+  - moby-engine
+write_files:
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+          "log-driver": "json-file",
+          "log-opts": {
+              "max-size": "10m",
+              "max-file": "100"
+          },
+          "default-address-pools": [
+            {
+              "base": "192.168.100.0/24",
+              "size": 27
+            }
+          ]
+      }
+  - path: /etc/aziot/config.toml
+    content: |
+      # Provisioning configuration
+      # --------------------------
+      ## Manual provisioning with connection string
+      #
+      [provisioning]
+      source = "manual"
+      connection_string =
+
+      # ==============================================================================
+      # Default Edge Agent
+      # ==============================================================================
+      #
+      [agent]
+      name = "edgeAgent"
+      type = "docker"
+
+      [agent.config]
+      image = "mcr.microsoft.com/azureiotedge-agent:1.4.8"
+
+      # ==============================================================================
+      # Edge CA certificate
+      # ==============================================================================
+      #
+      # [edge_ca]
+      auto_generated_edge_ca_expiry_days = 3652
+bootcmd:
+  # echo "enable Swap Management (does not require restart when configured in boot)"
+  - [ cloud-init-per, once, addswap1, sed, -i, "s/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"cgroup_enable=memory swapaccount=1\"/", /etc/default/grub ]
+  - [ cloud-init-per, once, mkdirgrub, mkdir, -p, /etc/default/grub.d, 2>, /dev/null ]
+  - [ cloud-init-per, once, addswap2, sed, -i, "s/GRUB_CMDLINE_LINUX_DEFAULT=\"\"/GRUB_CMDLINE_LINUX_DEFAULT=\"console=ttyS0 group_enable=memory swapaccount=1\"/", /etc/default/grub.d/50-cloudimg-settings.cfg ]
+  - [ cloud-init-per, once, updategrup, update-grub ]
+runcmd:
+  # Terraform Template injection for variable assignment
+  - DROPFOLDER="/srv/certs"
+  - echo "Storage folder for the edgeAgent & edgeHub (permission is set by container)"
+  - mkdir -p /srv/iotedge
+  - mkdir -p /srv/certs 2> /dev/null
+  - echo "Set initial permissions"
+  - chown -R localadmin /srv
+  - chmod -R 750 /srv
+  - echo "begin create cert"
+  - |
+      set -x
+      (
+        # see: https://docs.microsoft.com/en-us/dotnet/core/additional-tools/self-signed-certificates-guide#with-openssl
+        # see: https://kevinsaye.wordpress.com/2021/02/24/using-custom-x509-certificates-in-iot-edges-opc-publisher/
+        echo "create cert+key in pem format like the produktion system, without a chain"
+        openssl req \
+        -x509 \
+        -newkey rsa:4096 \
+        -sha256 \
+        -days 3650 \
+        -nodes \
+        -keyout $DROPFOLDER/$CERTFILENAME'_'decr.pem \
+        -out "$DROPFOLDER/$CERTFILENAME.pem" \
+        -subj "/CN=$CERTFILENAME" \
+        -extensions v3_ca \
+        -extensions v3_req \
+        -config $DROPFOLDER/$CERTFILENAME.openssl.cnf
+
+        echo "convert from pem to der"
+        openssl x509 -in $DROPFOLDER/$CERTFILENAME.pem -out $DROPFOLDER/$CERTFILENAME.der -outform DER
+
+        echo "printout the pem content"
+        openssl x509 -noout -text -in $DROPFOLDER/$CERTFILENAME.pem
+
+        echo "printout the der content"
+        openssl x509 -noout -text -in $DROPFOLDER/$CERTFILENAME.der -inform der
+
+        echo "done create self sign cert"
+      )
+  # Fix the access to the private key for iotedge group when mounted to the container
+  - chown localadmin $DROPFOLDER/$CERTFILENAME'_'decr.pem
+  - chmod g+r $DROPFOLDER/$CERTFILENAME'_'decr.pem
+  - |
+      set -x
+      (
+        echo "Device connection string: $DCS"
+
+        # Wait for docker daemon to start
+        while [ $(ps -ef | grep -v grep | grep docker | wc -l) -le 0 ]; do
+          sleep 4
+        done
+
+        apt-get update
+        apt-get install -y -f aziot-identity-service=1.4.2-1 aziot-edge=1.4.8-1 defender-iot-micro-agent-edge
+        echo "done aziot-edge setup"
+
+        # Set the file permissions for the now created iotedge group
+        chgrp -R iotedge /srv
+
+        if [ ! -z $DCS ]; then
+          # the file /etc/aziot/config.toml should already exist. Now set the ConnectionString
+          sed -i "s#\(connection_string =\).*#\1\ \"$DCS\"#g" /etc/aziot/config.toml
+          iotedge config apply -c /etc/aziot/config.toml
+        fi
+      ) &
+# Capture all subprocess output into a logfile. Useful for troubleshooting cloud-init issues
+output: { all: "| tee -a /var/log/cloud-init-output.log" }
+

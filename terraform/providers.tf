@@ -23,8 +23,12 @@ terraform {
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
 }
 provider "azuread" {
-    tenant_id = data.azurerm_client_config.current.tenant_id
+  tenant_id = data.azurerm_client_config.current.tenant_id
 }
